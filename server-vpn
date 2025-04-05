@@ -235,7 +235,7 @@ configure_netplan() {
 
     if [ \"$net_choice\" == \"1\" ]; then
         cat <<EOF > /etc/netplan/01-network-manager-all.yaml
-# Файл автоматически сгенерирован скриптом vpn.sh (Автор: @bossgram)
+# Файл автоматически сгенерирован скриптом vpn.sh 
 network:
   version: 2
   renderer: networkd
@@ -258,7 +258,7 @@ EOF
         read -r -p \"Введите DNS1: \" DNS1
         read -r -p \"Введите DNS2: \" DNS2
         cat <<EOF > /etc/netplan/01-network-manager-all.yaml
-# Файл автоматически сгенерирован скриптом vpn.sh (Автор: @bossgram)
+# Файл автоматически сгенерирован скриптом vpn.sh 
 network:
   version: 2
   renderer: networkd
@@ -351,7 +351,6 @@ EOF
 }
 
 # Настройка iptables и NAT
-# Автор скрипта: @bossgram | https://github.com/Boss-kokos
 configure_iptables() {
     log_info \"Настраиваю iptables (MASQUERADE)\"
     sed -i '/^#.*net.ipv4.ip_forward/s/^#//' /etc/sysctl.conf
@@ -651,7 +650,7 @@ EOF
 
 # Функция для настройки и запуска Telegram Bot Service
 telegram_bot() {
-    echo \"Настройка Telegram Bot Service... (Автор: @bossgram)\"
+    echo \"Настройка Telegram Bot Service... )\"
 
     tee /etc/systemd/system/telegram_bot.service > /dev/null << 'EOF'
 [Unit]
@@ -696,7 +695,7 @@ EOF
 
 # Функция настройки Home Metrics Daemon
 configure_home_metrics_daemon() {
-    log_info \"Настраиваю Home Metrics Daemon (Автор: @bossgram)\"
+    log_info \"Настраиваю Home Metrics Daemon\"
 
     cat <<'EOF' > /etc/systemd/system/home_metrics_daemon.service
 [Unit]
@@ -740,7 +739,7 @@ EOF
 
 # Функция финальных доработок (права на папки, создание файла заметок)
 finalize_setup() {
-    log_info \"Выполняю финальные доработки (Автор: @bossgram)\"
+    log_info \"Выполняю финальные доработки\"
     chmod -R 777 /var/www/html || log_error \"Не удалось изменить права на /var/www/html\"
     mkdir -p /home/files/.trash/.tmb/
     mkdir -p /home/files/.trash/
@@ -895,7 +894,7 @@ check_execution() {
 check_root
 
 echo \"\"
-echo -e \"${BLUE}Добро пожаловать в установщик BOSS VPN (by @bossgram)!${NC}\"
+echo -e \"${BLUE}Добро пожаловать в установщик BOSS VPN !${NC}\"
 echo -e \"${YELLOW}==============================================${NC}\"
 echo -e \"${YELLOW}  Установка VPN-сервера с веб-интерфейсом (v2.5.0)${NC}\"
 echo -e \"${YELLOW}==============================================${NC}\"
@@ -931,8 +930,7 @@ configure_home_metrics_daemon
 finalize_setup
 check_execution
 
-echo -e \"\\n${GREEN}[OK]${NC} Установка завершена успешно!\"
-echo \"Автор скрипта: @bossgram | GitHub: https://github.com/Boss-kokos\"
+echo -e \"\\n${GREEN}[OK]${NC} Установка завершена успешно!\""
 echo \"После перезагрузки сервера все настройки будут применены.\"
 echo \"Веб-интерфейс доступен по адресу: http://$LOCAL_IP/\"
 echo \"Логин и пароль от веб-сайта совпадает с root\"
