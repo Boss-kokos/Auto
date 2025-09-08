@@ -1,5 +1,3 @@
-# 1) создать файл из кода ниже
-cat > vpn-manager.sh <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -190,4 +188,3 @@ main_menu
 EOF
 # 2) дать права и запустить
 chmod +x vpn-manager.sh
-sudo ./vpn-manager.sh
