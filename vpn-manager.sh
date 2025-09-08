@@ -1,3 +1,5 @@
+# 1) создать файл из кода ниже
+cat > vpn-manager.sh <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -5,7 +7,6 @@ AUTO="${1:-}"   # --defaults = без вопросов
 [[ $EUID -eq 0 ]] || { echo "Нужен root"; exit 1; }
 command -v apt >/dev/null || { echo "Нужен Debian/Ubuntu"; exit 1; }
 
-# ===== helpers =====
 ask(){ local v="$1" d="$2" p="$3"; if [[ "$AUTO" == "--defaults" ]]; then printf -v "$v" '%s' "$d"; echo "$p [$d]: $d"; else read -e -i "$d" -p "$p [$d]: " "$v"; [[ -z "${!v}" ]] && printf -v "$v" '%s' "$d"; fi; }
 menu_proto(){ echo "Протокол:"; echo "  1) UDP"; echo "  2) TCP"; if [[ "$AUTO" == "--defaults" ]]; then CH="1"; echo "Ваш выбор [1]: 1"; else read -e -i "1" -p "Ваш выбор [1]: " CH; fi; case "${CH:-1}" in 1) PROTO="udp";; 2) PROTO="tcp";; *) PROTO="udp";; esac; }
 menu_dns(){ echo "DNS:"; echo "  1) System"; echo "  2) Unbound (локальный)"; echo "  3) Cloudflare"; echo "  4) Google"; echo "  5) OpenDNS"; echo "  6) Quad9"; if [[ "$AUTO" == "--defaults" ]]; then DNS_CH="1"; echo "Ваш выбор [1]: 1"; else read -e -i "1" -p "Ваш выбор [1]: " DNS_CH; fi; DNS_CH=${DNS_CH:-1}; }
@@ -38,15 +39,11 @@ UCONF
   systemctl enable --now unbound
 }
 
-# ===== actions =====
 install_openvpn(){
   local RAND_PORT PORT PROTO DNS_CH PUBLIC_IP MODE CLIENT
   RAND_PORT="$(shuf -i 20000-60000 -n1)"
-  ask PORT "$RAND_PORT" "Порт"
-  menu_proto
-  menu_dns
-  ask PUBLIC_IP "$(pubip)" "Публичный IPv4 для клиентов"
-  menu_mode
+  ask PORT "$RAND_PORT" "Порт"; menu_proto; menu_dns
+  ask PUBLIC_IP "$(pubip)" "Публичный IPv4 для клиентов"; menu_mode
   [[ "$MODE" == "2" ]] && ask CLIENT "shared" "Имя общего клиента" || ask CLIENT "client1" "Имя первого клиента"
 
   export DEBIAN_FRONTEND=noninteractive
@@ -189,5 +186,8 @@ main_menu(){
     *) echo "Неверно"; exit 1 ;;
   esac
 }
-
 main_menu
+EOF
+# 2) дать права и запустить
+chmod +x vpn-manager.sh
+sudo ./vpn-manager.sh
