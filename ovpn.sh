@@ -1,47 +1,38 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-[[ $EUID -eq 0 ]] || { echo "Запусти как root"; exit 1; }
-command -v apt >/dev/null || { echo "Нужен Debian/Ubuntu с apt"; exit 1; }
+# ===== общие =====
+[[ $EUID -eq 0 ]] || { echo "Нужен root"; exit 1; }
+command -v apt >/dev/null || { echo "Нужен Debian/Ubuntu"; exit 1; }
+AUTO="${1:-}"  # --defaults = без вопросов
 
-AUTO="${1:-}"   # --defaults = тихая установка
-
-# ------- дефолты -------
+# ===== дефолты =====
 RAND_PORT="$(shuf -i 20000-60000 -n1)"
 PORT_DEF="$RAND_PORT"
-IPV4_DEF="$(ip -4 addr show scope global | awk '/inet /{print $2}' | cut -d/ -f1 | head -n1)"
-DNS_DEF=1      # 1=System, 2=Cloudflare, 3=Google, 4=OpenDNS, 5=Quad9
+IPV4_DEF="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '/src/{print $7; exit}')"
+[[ -z "${IPV4_DEF:-}" ]] && IPV4_DEF="$(hostname -I | awk '{print $1}')"
+DNS_DEF=1  # 1=System, 2=Cloudflare, 3=Google, 4=OpenDNS, 5=Quad9
 
-# ------- утилиты ввода -------
-ask() { # ask VAR DEFAULT "Prompt"
-  local __v="$1" __d="$2" __p="$3"
-  if [[ "$AUTO" == "--defaults" ]]; then printf -v "$__v" '%s' "$__d"; echo "$__p [$__d]: $__d"
-  else read -e -i "$__d" -p "$__p [$__d]: " "$__v"; [[ -z "${!__v}" ]] && printf -v "$__v" '%s' "$__d"
+ask(){ # ask VAR DEFAULT "Prompt"
+  local v="$1" d="$2" p="$3"
+  if [[ "$AUTO" == "--defaults" ]]; then printf -v "$v" '%s' "$d"; echo "$p [$d]: $d"
+  else read -e -i "$d" -p "$p [$d]: " "$v"; [[ -z "${!v}" ]] && printf -v "$v" '%s' "$d"
   fi
 }
-menu_proto() {
-  echo "Протокол:"
-  echo "  1) UDP"
-  echo "  2) TCP"
-  if [[ "$AUTO" == "--defaults" ]]; then PROTO_CH="1"; echo "Ваш выбор [1]: 1"
-  else read -e -i "1" -p "Ваш выбор [1]: " PROTO_CH; fi
-  case "${PROTO_CH:-1}" in 1) PROTO="udp";; 2) PROTO="tcp";; *) PROTO="udp";; esac
+menu_proto(){
+  echo "Протокол:"; echo "  1) UDP"; echo "  2) TCP"
+  if [[ "$AUTO" == "--defaults" ]]; then CH="1"; echo "Ваш выбор [1]: 1"
+  else read -e -i "1" -p "Ваш выбор [1]: " CH; fi
+  case "${CH:-1}" in 1) PROTO="udp";; 2) PROTO="tcp";; *) PROTO="udp";; esac
 }
-menu_dns() {
-  echo "DNS:"
-  echo "  1) System (текущие резолверы)"
-  echo "  2) Cloudflare 1.1.1.1"
-  echo "  3) Google 8.8.8.8"
-  echo "  4) OpenDNS 208.67.222.222"
-  echo "  5) Quad9 9.9.9.9"
+menu_dns(){
+  echo "DNS:"; echo "  1) System"; echo "  2) Cloudflare 1.1.1.1"; echo "  3) Google 8.8.8.8"; echo "  4) OpenDNS"; echo "  5) Quad9"
   if [[ "$AUTO" == "--defaults" ]]; then DNS_CH="$DNS_DEF"; echo "Ваш выбор [$DNS_DEF]: $DNS_DEF"
   else read -e -i "$DNS_DEF" -p "Ваш выбор [$DNS_DEF]: " DNS_CH; fi
   DNS_CH=${DNS_CH:-$DNS_DEF}
 }
-menu_mode() {
-  echo "Режим клиентов:"
-  echo "  1) Каждый клиент со своим конфигом (рекомендуется)"
-  echo "  2) Мульти (общий конфиг, duplicate-cn)"
+menu_mode(){
+  echo "Режим клиентов:"; echo "  1) Каждый свой конфиг (рекомендуется)"; echo "  2) Мульти (duplicate-cn, небезопасно)"
   if [[ "$AUTO" == "--defaults" ]]; then MODE="1"; echo "Ваш выбор [1]: 1"
   else read -e -i "1" -p "Ваш выбор [1]: " MODE; fi
   MODE=${MODE:-1}
@@ -60,7 +51,12 @@ export DEBIAN_FRONTEND=noninteractive
 apt update
 apt install -y openvpn easy-rsa iptables-persistent
 
-# PKI
+# UFW (если активен) — открыть порт
+if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
+  ufw allow "$PORT/$PROTO" || true
+fi
+
+# ===== PKI / Easy-RSA =====
 install -d -m 700 /etc/openvpn/easy-rsa
 cp -r /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/
 cd /etc/openvpn/easy-rsa
@@ -74,10 +70,10 @@ install -d -m 755 /etc/openvpn/server
 cp pki/ca.crt pki/issued/server.crt pki/private/server.key pki/crl.pem /etc/openvpn/server/
 chown nobody:nogroup /etc/openvpn/server/crl.pem
 
-# tls-crypt
+# ===== tls-crypt =====
 openvpn --genkey secret /etc/openvpn/server/tc.key
 
-# DNS push
+# ===== DNS push =====
 DNS_LINES=""
 case "$DNS_CH" in
   1)
@@ -90,7 +86,7 @@ case "$DNS_CH" in
   5) DNS_LINES=$'push "dhcp-option DNS 9.9.9.9"\npush "dhcp-option DNS 149.112.112.112"\n' ;;
 esac
 
-# server.conf
+# ===== server.conf =====
 cat >/etc/openvpn/server/server.conf <<EOF
 port ${PORT}
 proto ${PROTO}
@@ -121,23 +117,23 @@ status /var/log/openvpn-status.log
 EOF
 [[ "$MODE" == "2" ]] && echo "duplicate-cn" >> /etc/openvpn/server/server.conf
 
-# Маршрутизация
+# ===== маршрутизация =====
 sysctl -w net.ipv4.ip_forward=1 >/dev/null
 echo "net.ipv4.ip_forward=1" >/etc/sysctl.d/30-openvpn-forward.conf
 
-IFACE="$(ip route get 1.1.1.1 | awk '/dev/{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
+IFACE="$(ip route show default 2>/dev/null | awk '/dev/{print $5; exit}')"
+[[ -z "${IFACE:-}" ]] && IFACE="$(ip route get 1.1.1.1 | awk '/dev/{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')"
 iptables -t nat -C POSTROUTING -s 10.8.0.0/24 -o "$IFACE" -j MASQUERADE 2>/dev/null || iptables -t nat -A POSTROUTING -s 10.8.0.0/24 -o "$IFACE" -j MASQUERADE
 iptables -C INPUT -p ${PROTO} --dport ${PORT} -j ACCEPT 2>/dev/null || iptables -A INPUT -p ${PROTO} --dport ${PORT} -j ACCEPT
 iptables -C FORWARD -s 10.8.0.0/24 -j ACCEPT 2>/dev/null || iptables -A FORWARD -s 10.8.0.0/24 -j ACCEPT
 iptables -C FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
-
-# Сохраняем правила без netfilter-persistent save (обходит баг sed)
+# Сохранить правила, обходя баг sed в netfilter-persistent
 install -d /etc/iptables
 iptables-save  > /etc/iptables/rules.v4 || true
 ip6tables-save > /etc/iptables/rules.v6 || true
 systemctl enable netfilter-persistent >/dev/null 2>&1 || true
 
-# Клиентский шаблон
+# ===== клиентский шаблон =====
 cat >/etc/openvpn/server/client-common.txt <<EOF
 client
 dev tun
@@ -155,7 +151,7 @@ key-direction 1
 verb 3
 EOF
 
-# Генерация .ovpn в /root
+# ===== генерация .ovpn =====
 gen_client () {
   local NAME="$1" OUT="/root/${NAME}.ovpn"
   cp /etc/openvpn/server/client-common.txt "$OUT"
@@ -167,24 +163,21 @@ gen_client () {
   } >>"$OUT"
   echo "Создан $OUT"
 }
-gen_client "$CLIENT"
 
+gen_client "$CLIENT"
 systemctl enable --now openvpn-server@server.service
 
-# Доп. клиенты в режиме 1
+# цикл добавления клиентов в “single”
 if [[ "$MODE" != "2" && "$AUTO" != "--defaults" ]]; then
   while true; do
-    echo "Добавить ещё клиента?"
-    echo "  y) Да"
-    echo "  n) Нет"
-    read -e -i "n" -p "Ваш выбор [n]: " yn
-    [[ "${yn:-n}" =~ ^[Yy]$ ]] || break
-    read -p "Имя клиента: " NEWC
-    [[ -z "${NEWC:-}" ]] && continue
+    echo "Добавить ещё клиента?  y/N"
+    read -r -e -i "N" -p "> " yn
+    [[ "${yn:-N}" =~ ^[Yy]$ ]] || break
+    read -r -p "Имя клиента: " NEWC; [[ -z "${NEWC:-}" ]] && continue
     EASYRSA_BATCH=1 ./easyrsa build-client-full "$NEWC" nopass
     gen_client "$NEWC"
   done
 fi
 
 echo "Готово. Файлы клиентов: /root/*.ovpn"
-[[ "$MODE" == "2" ]] && echo "Внимание: включён мульти-конфиг (duplicate-cn). Лучше выдавать отдельные сертификаты."
+[[ "$MODE" == "2" ]] && echo "Включён общий конфиг (duplicate-cn). Для безопасности лучше отдельные клиенты."
