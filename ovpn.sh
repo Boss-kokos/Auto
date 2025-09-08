@@ -1,80 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# --------- проверки окружения ---------
+# ====== параметры по умолчанию (переопределяй через переменные окружения) ======
+PORT="${PORT:-$(shuf -i 20000-60000 -n1)}"         # пример: 1194 или 443
+PROTO="${PROTO:-udp}"                               # udp|tcp
+DNS="${DNS:-system}"                                # system|cloudflare|google|opendns|quad9
+MODE="${MODE:-single}"                              # single|multi  (multi => duplicate-cn)
+CLIENT="${CLIENT:-client1}"                         # имя первого клиента
+IPV4_AUTO="$(ip -4 addr show scope global | awk '/inet /{print $2}' | cut -d/ -f1 | head -n1)"
+PUBLIC_IP="${PUBLIC_IP:-$IPV4_AUTO}"
+
+# ====== проверки ======
 [[ $EUID -eq 0 ]] || { echo "Запусти как root"; exit 1; }
 command -v apt >/dev/null || { echo "Нужен Debian/Ubuntu с apt"; exit 1; }
 
-AUTO="${1:-}"   # --defaults = тихая установка
+echo "== Установка OpenVPN (авто) =="
+echo "PORT=$PORT PROTO=$PROTO DNS=$DNS MODE=$MODE CLIENT=$CLIENT PUBLIC_IP=$PUBLIC_IP"
 
-# --------- дефолты ---------
-RAND_PORT="$(shuf -i 20000-60000 -n1)"
-PORT_DEFAULT="$RAND_PORT"
-PROTO_DEFAULT="udp"
-DNS_DEFAULT=1   # 1=System, 2=Cloudflare, 3=Google, 4=OpenDNS, 5=Quad9
-IPV4="$(ip -4 addr show scope global | awk '/inet /{print $2}' | cut -d/ -f1 | head -n1)"
-
-# --------- утилиты ввода ---------
-ask() { # ask VAR DEFAULT "Prompt"
-  local __var="$1" __def="$2" __prompt="$3"
-  if [[ "$AUTO" == "--defaults" ]]; then
-    printf -v "$__var" '%s' "$__def"
-    echo "$__prompt [$__def]: $__def"
-  else
-    read -e -i "$__def" -p "$__prompt [$__def]: " "$__var"
-    [[ -z "${!__var}" ]] && printf -v "$__var" '%s' "$__def"
-  fi
-}
-
-menu_proto() {
-  echo "Выберите протокол:"
-  echo "  1) UDP"
-  echo "  2) TCP"
-  if [[ "$AUTO" == "--defaults" ]]; then PROTO_CH="1"; echo "Ваш выбор [1]: 1"
-  else read -e -i "1" -p "Ваш выбор [1]: " PROTO_CH; fi
-  case "${PROTO_CH:-1}" in 1) PROTO="udp";; 2) PROTO="tcp";; *) PROTO="udp";; esac
-}
-
-menu_dns() {
-  echo "Выберите DNS:"
-  echo "  1) System (текущие резолверы)"
-  echo "  2) Cloudflare 1.1.1.1"
-  echo "  3) Google 8.8.8.8"
-  echo "  4) OpenDNS 208.67.222.222"
-  echo "  5) Quad9 9.9.9.9"
-  if [[ "$AUTO" == "--defaults" ]]; then DNS_CH="$DNS_DEFAULT"; echo "Ваш выбор [${DNS_DEFAULT}]: ${DNS_DEFAULT}"
-  else read -e -i "$DNS_DEFAULT" -p "Ваш выбор [${DNS_DEFAULT}]: " DNS_CH; fi
-  DNS_CH=${DNS_CH:-$DNS_DEFAULT}
-}
-
-menu_mode() {
-  echo "Режим клиентов:"
-  echo "  1) Каждый клиент со своим конфигом (рекомендовано)"
-  echo "  2) Мульти (общий конфиг, duplicate-cn)"
-  if [[ "$AUTO" == "--defaults" ]]; then MODE="1"; echo "Ваш выбор [1]: 1"
-  else read -e -i "1" -p "Ваш выбор [1]: " MODE; fi
-  MODE=${MODE:-1}
-}
-
-# --------- ввод параметров ---------
-echo "=== Установка OpenVPN (безопасная) ==="
-ask PORT      "$PORT_DEFAULT" "Порт"
-menu_proto
-menu_dns
-ask PUBLIC_IP "$IPV4" "Публичный IPv4 для клиентов"
-menu_mode
-if [[ "$MODE" == "2" ]]; then
-  ask CLIENT "shared"  "Имя общего клиента"
-else
-  ask CLIENT "client1" "Имя первого клиента"
-fi
-
-# --------- установка пакетов ---------
+# ====== пакеты ======
 export DEBIAN_FRONTEND=noninteractive
 apt update
 apt install -y openvpn easy-rsa iptables-persistent netfilter-persistent
 
-# --------- PKI / Easy-RSA ---------
+# ====== PKI / Easy-RSA ======
 install -d -m 700 /etc/openvpn/easy-rsa
 cp -r /usr/share/easy-rsa/* /etc/openvpn/easy-rsa/
 cd /etc/openvpn/easy-rsa
@@ -89,24 +37,25 @@ install -d -m 755 /etc/openvpn/server
 cp pki/ca.crt pki/issued/server.crt pki/private/server.key pki/crl.pem /etc/openvpn/server/
 chown nobody:nogroup /etc/openvpn/server/crl.pem
 
-# --------- tls-crypt ---------
+# ====== tls-crypt ======
 openvpn --genkey secret /etc/openvpn/server/tc.key
 
-# --------- DNS push ---------
+# ====== DNS push ======
 DNS_LINES=""
-case "$DNS_CH" in
-  1)
+case "$DNS" in
+  system)
     RESOLVCONF='/etc/resolv.conf'
     [[ -f /run/systemd/resolve/resolv.conf ]] && RESOLVCONF='/run/systemd/resolve/resolv.conf'
     while read -r ns; do DNS_LINES+="push \"dhcp-option DNS $ns\"\n"; done < <(grep -v '#' "$RESOLVCONF" | awk '/nameserver/{print $2}')
     ;;
-  2) DNS_LINES=$'push "dhcp-option DNS 1.1.1.1"\npush "dhcp-option DNS 1.0.0.1"\n' ;;
-  3) DNS_LINES=$'push "dhcp-option DNS 8.8.8.8"\npush "dhcp-option DNS 8.8.4.4"\n' ;;
-  4) DNS_LINES=$'push "dhcp-option DNS 208.67.222.222"\npush "dhcp-option DNS 208.67.220.220"\n' ;;
-  5) DNS_LINES=$'push "dhcp-option DNS 9.9.9.9"\npush "dhcp-option DNS 149.112.112.112"\n' ;;
+  cloudflare) DNS_LINES=$'push "dhcp-option DNS 1.1.1.1"\npush "dhcp-option DNS 1.0.0.1"\n' ;;
+  google)     DNS_LINES=$'push "dhcp-option DNS 8.8.8.8"\npush "dhcp-option DNS 8.8.4.4"\n' ;;
+  opendns)    DNS_LINES=$'push "dhcp-option DNS 208.67.222.222"\npush "dhcp-option DNS 208.67.220.220"\n' ;;
+  quad9)      DNS_LINES=$'push "dhcp-option DNS 9.9.9.9"\npush "dhcp-option DNS 149.112.112.112"\n' ;;
+  *)          DNS_LINES="" ;;
 esac
 
-# --------- серверный конфиг ---------
+# ====== server.conf ======
 cat >/etc/openvpn/server/server.conf <<EOF
 port ${PORT}
 proto ${PROTO}
@@ -136,10 +85,12 @@ verb 3
 status /var/log/openvpn-status.log
 EOF
 
-# duplicate-cn для мульти
-[[ "$MODE" == "2" ]] && echo "duplicate-cn" >> /etc/openvpn/server/server.conf
+# Включить общий сертификат если нужно
+if [[ "$MODE" == "multi" ]]; then
+  echo "duplicate-cn" >> /etc/openvpn/server/server.conf
+fi
 
-# --------- форвардинг и NAT ---------
+# ====== форвардинг и NAT ======
 sysctl -w net.ipv4.ip_forward=1 >/dev/null
 echo "net.ipv4.ip_forward=1" >/etc/sysctl.d/30-openvpn-forward.conf
 
@@ -154,7 +105,7 @@ iptables -C FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null |
 iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
 netfilter-persistent save
 
-# --------- шаблон клиента ---------
+# ====== шаблон клиента ======
 cat >/etc/openvpn/server/client-common.txt <<EOF
 client
 dev tun
@@ -172,38 +123,22 @@ key-direction 1
 verb 3
 EOF
 
-# --------- генерация .ovpn в /root ---------
+# ====== генерация .ovpn в /root ======
 gen_client () {
   local NAME="$1"
   local OUT="/root/${NAME}.ovpn"
-  cp /etc/openvpn/server/client-common.txt "$OUT"
+  cp /etc/openvpn/server/client-common.txt "\$OUT"
   {
     echo "<ca>";        cat /etc/openvpn/server/ca.crt; echo "</ca>"
-    echo "<cert>";      sed -ne '/BEGIN CERTIFICATE/,$p' "/etc/openvpn/easy-rsa/pki/issued/${NAME}.crt"; echo "</cert>"
-    echo "<key>";       cat "/etc/openvpn/easy-rsa/pki/private/${NAME}.key"; echo "</key>"
-    echo "<tls-crypt>"; sed -ne '/BEGIN OpenVPN Static key/,$p' /etc/openvpn/server/tc.key; echo "</tls-crypt>"
-  } >>"$OUT"
-  echo "Создан /root/${NAME}.ovpn"
+    echo "<cert>";      sed -ne '/BEGIN CERTIFICATE/,\$p' "/etc/openvpn/easy-rsa/pki/issued/\${NAME}.crt"; echo "</cert>"
+    echo "<key>";       cat "/etc/openvpn/easy-rsa/pki/private/\${NAME}.key"; echo "</key>"
+    echo "<tls-crypt>"; sed -ne '/BEGIN OpenVPN Static key/,\$p' /etc/openvpn/server/tc.key; echo "</tls-crypt>"
+  } >>"\$OUT"
+  echo "Создан \$OUT"
 }
-
 gen_client "$CLIENT"
 
 systemctl enable --now openvpn-server@server.service
 
-# --------- доп. клиенты в режиме 1 ---------
-if [[ "$MODE" != "2" && "$AUTO" != "--defaults" ]]; then
-  while true; do
-    echo "Добавить ещё клиента?"
-    echo "  y) Да"
-    echo "  n) Нет"
-    read -e -i "n" -p "Ваш выбор [n]: " yn
-    [[ "${yn:-n}" =~ ^[Yy]$ ]] || break
-    read -p "Имя клиента: " NEWC
-    [[ -z "${NEWC:-}" ]] && continue
-    EASYRSA_BATCH=1 ./easyrsa build-client-full "$NEWC" nopass
-    gen_client "$NEWC"
-  done
-fi
-
-echo "Готово. Файлы клиентов: /root/*.ovpn"
-[[ "$MODE" == "2" ]] && echo "Внимание: включён мульти-конфиг (duplicate-cn). Для безопасности лучше отдельные клиенты."
+echo "Готово. Импортируй /root/${CLIENT}.ovpn в клиент OpenVPN."
+echo "Новый клиент:  cd /etc/openvpn/easy-rsa && EASYRSA_BATCH=1 ./easyrsa build-client-full NAME nopass && bash -c 'gen_client NAME'"
