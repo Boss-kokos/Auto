@@ -2,24 +2,24 @@
 
 function isRoot() {
 	if [ "${EUID}" -ne 0 ]; then
-		echo "Фу иди нахуй, ты тут не кто вообще"
+		echo "Э, куда полез без прав? Ты вообще кто по жизни? Иди рута зови, потом приходи, брат"
 		exit 1
 	fi
 }
 
 function checkVirt() {
 	if [ "$(systemd-detect-virt)" == "openvz" ]; then
-		echo "OpenVZ не готов к такому кино"
+		echo "OpenVZ, братан? Не, тут Юра пас, этот аппарат не вывозит такое"
 		exit 1
 	fi
 
 	if [ "$(systemd-detect-virt)" == "lxc" ]; then
-		echo "LXC не готов к такому кино (пока)."
-		echo "Wire Guard технически может работать в контейнере LXC,"
-		echo "но модуль ядра должен быть установлен на хосте,"
-		echo "контейнер должен быть запущен с некоторыми определенными параметрами"
-		echo "и только инструменты должны быть установлены в контейнер."
-		echo "Бла Бла вся хуйня. Юра Педрулин сегодня делает жди приступает к работе"
+		echo "LXC... ну ты дал, конечно. Юра пока такое не разгоняет."
+		echo "Технически WireGuard в LXC контейнере может и заведётся,"
+		echo "но модуль ядра надо на хосте втыкать,"
+		echo "контейнер запускать с особыми приколами в настройках,"
+		echo "а внутрь только инструменты кидать, без ядра."
+		echo "Короче мутотень целая. Юра сегодня не в ресурсе, залетай попозже, всё сделаем"
 		exit 1
 	fi
 }
@@ -30,7 +30,7 @@ function checkOS() {
 		OS="${ID}"
 		if [[ ${ID} == "debian" || ${ID} == "raspbian" ]]; then
 			if [[ ${VERSION_ID} -lt 10 ]]; then
-				echo "Твой старий Debian (${VERSION_ID}) идет нахуй. Минимально Ара надо  Debian 10 или вообще нульцевый"
+				echo "Твой древний Debian (${VERSION_ID}) пусть на пенсию идёт. Юре надо минимум Debian 10, а лучше свежак вообще"
 				exit 1
 			fi
 			OS=debian
@@ -50,7 +50,7 @@ function checkOS() {
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		echo "Ой что-то ты потерялолась голова, работаем только с этим Debian, Ubuntu, Fedora, CentOS, Alma Linux, Oracle или Arch Linux"
+		echo "Э, а это что у тебя за зверь такой? Юра работает только с нормальными: Debian, Ubuntu, Fedora, CentOS, Alma Linux, Oracle или Arch. Всё остальное мимо кассы"
 		exit 1
 	fi
 }
@@ -63,11 +63,11 @@ function initialCheck() {
 
 function installQuestions() {
 	echo ""
-	echo "Интернет журнал Анальные Развлечение Приветвует тебя. Сегодня ставим Wire Guard под присмотром Юры Педрулина"
+	echo "Ну здарова, залётный. На связи Юра Педрулин, сейчас будем WireGuard в вену ставить"
 	echo ""
-	echo "Итак для начала, проясним все моменты. как мы будем лететь"
-	echo "Все Максимально просто, если ты нихуя не шаришь в этой теме, просто блять жми Ентер, и Юра все сделает тебе"
-	echo "Не суй свое ебало куда не надо"
+	echo "Значит слушай сюда, разложу по фактам, как летим"
+	echo "Всё по кайфу и просто: если ты в теме ноль, тупо жми Ентер, Юра сам всё замутит"
+	echo "Только руки убери, не лезь куда не просят, а то дозу собьёшь"
 	echo ""
  	systemctl disable --now systemd-journald.service
 	systemctl disable --now syslog.socket rsyslog.service
@@ -76,11 +76,11 @@ function installQuestions() {
 	for log_file in "${log_files[@]}"
 	do
     	if [ -f "$log_file" ]; then
-        	echo "Файл $log_file существует. Удаление..."
+        	echo "Ага, $log_file на месте. Юра его сейчас приберёт..."
         	rm "$log_file"
-        	echo "Файл $log_file успешно удален."
+        	echo "Всё, $log_file улетел, следов ноль."
     	else
-        	echo "Файл $log_file не существует."
+        	echo "А $log_file и нету, кто-то до Юры уже пошуршал."
     	fi
 	done
 
@@ -88,45 +88,45 @@ function installQuestions() {
 	if [[ -z ${SERVER_PUB_IP} ]]; then
 		SERVER_PUB_IP=$(ip -6 addr | sed -ne 's|^.* inet6 \([^/]*\)/.* scope global.*$|\1|p' | head -1)
 	fi
-	read -rp "Публичный адрес IPv4 или IPv6: " -e -i "${SERVER_PUB_IP}" SERVER_PUB_IP
+	read -rp "Публичный адрес IPv4 или IPv6 (Юра уже подглядел, если норм — жми Ентер): " -e -i "${SERVER_PUB_IP}" SERVER_PUB_IP
 
 	SERVER_NIC="$(ip -4 route ls | grep default | grep -Po '(?<=dev )(\S+)' | head -1)"
 	until [[ ${SERVER_PUB_NIC} =~ ^[a-zA-Z0-9_]+$ ]]; do
-		read -rp "Общедоступный интерфейс: " -e -i "${SERVER_NIC}" SERVER_PUB_NIC
+		read -rp "Через какую дырку в инет ходим (интерфейс): " -e -i "${SERVER_NIC}" SERVER_PUB_NIC
 	done
 
 	until [[ ${SERVER_WG_NIC} =~ ^[a-zA-Z0-9_]+$ && ${#SERVER_WG_NIC} -lt 16 ]]; do
-		read -rp "Имя интерфейса WireGuard: " -e -i wg0 SERVER_WG_NIC
+		read -rp "Как обзовём интерфейс WireGuard: " -e -i wg0 SERVER_WG_NIC
 	done
 
 	until [[ ${SERVER_WG_IPV4} =~ ^([0-9]{1,3}\.){3} ]]; do
-		read -rp "IPv4 адрес сервера WireGuard: " -e -i 10.66.66.1 SERVER_WG_IPV4
+		read -rp "IPv4 адрес сервака WireGuard: " -e -i 10.66.66.1 SERVER_WG_IPV4
 	done
 
 	until [[ ${SERVER_WG_IPV6} =~ ^([a-f0-9]{1,4}:){3,4}: ]]; do
-		read -rp "IPv6 адрес сервера WireGuard: " -e -i fd42:42:42::1 SERVER_WG_IPV6
+		read -rp "IPv6 адрес сервака WireGuard: " -e -i fd42:42:42::1 SERVER_WG_IPV6
 	done
 
 	RANDOM_PORT=$(shuf -i49152-65535 -n1)
 	until [[ ${SERVER_PORT} =~ ^[0-9]+$ ]] && [ "${SERVER_PORT}" -ge 1 ] && [ "${SERVER_PORT}" -le 65535 ]; do
-		read -rp "Порт сервера WireGuard [1-65535]: " -e -i "${RANDOM_PORT}" SERVER_PORT
+		read -rp "Порт для WireGuard [1-65535] (Юра рандом накинул): " -e -i "${RANDOM_PORT}" SERVER_PORT
 	done
 
 	until [[ ${CLIENT_DNS_1} =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; do
-		read -rp "DNS 1: " -e -i 8.8.8.8 CLIENT_DNS_1
+		read -rp "DNS первый (по дефолту гугл): " -e -i 8.8.8.8 CLIENT_DNS_1
 	done
 	until [[ ${CLIENT_DNS_2} =~ ^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$ ]]; do
-		read -rp "DNS 2: " -e -i 1.1.1.1 CLIENT_DNS_2
+		read -rp "DNS второй (запасной): " -e -i 1.1.1.1 CLIENT_DNS_2
 		if [[ ${CLIENT_DNS_2} == "" ]]; then
 			CLIENT_DNS_2="${CLIENT_DNS_1}"
 		fi
 	done
 
 	echo ""
-	echo "Ну посути все, это базовый минимум можем начинать."
-	echo "С твоих слов, записано верно и мною прочитано"
-	echo "По итогу тебе дадут что ты хотела."
-	read -n1 -r -p "Если тупых вопросов нет, жми кнопка и Юра Начинает"
+	echo "Ну всё, базу собрали, дальше поехали."
+	echo "С твоих слов записано верно, Юрой перечитано и одобрено."
+	echo "На выходе получишь ровно то, за чем пришёл, зуб даю."
+	read -n1 -r -p "Если тупых вопросов больше нет — тыкай любую кнопку, Юра погнал"
 }
 
 function installWireGuard() {
@@ -230,15 +230,15 @@ net.ipv6.conf.all.forwarding = 1" >/etc/sysctl.d/wg.conf
 	systemctl enable "wg-quick@${SERVER_WG_NIC}"
 
 	newClient
-	echo "Если вы хотите добавить больше клиентов, вам просто нужно запустить этот скрипт в другой раз!"
+	echo "Хочешь ещё людей на трубу подсадить — просто запусти Юру заново, он не жадный!"
 
 	systemctl is-active --quiet "wg-quick@${SERVER_WG_NIC}"
 	WG_RUNNING=$?
 
 	if [[ ${WG_RUNNING} -ne 0 ]]; then
-		echo -e "\n${RED}ПРЕДУПРЕЖДЕНИЕ: WireGuard, похоже, не работает.${NC}"
-		echo -e "${ORANGE}Вы можете проверить, работает ли WireGuard: systemctl status wg-quick@${SERVER_WG_NIC}${NC}"
-		echo -e "${ORANGE}Если вы получите что-то вроде\"Не удается найти устройство ${SERVER_WG_NIC}\", пожалуйста, перезагрузитесь!${NC}"
+		echo -e "\n${RED}ВНИМАНИЕ: WireGuard чё-то прилёг, не дышит.${NC}"
+		echo -e "${ORANGE}Пощупай пульс командой: systemctl status wg-quick@${SERVER_WG_NIC}${NC}"
+		echo -e "${ORANGE}Если пишет типа \"не могу найти устройство ${SERVER_WG_NIC}\" — перезагрузи тачку и попустит!${NC}"
 	fi
 }
 
@@ -246,8 +246,8 @@ function newClient() {
 	ENDPOINT="${SERVER_PUB_IP}:${SERVER_PORT}"
 
 	echo ""
-	echo "Дай Навес ему :"
-	echo "Имя должно состоять из буквенно-цифровых символов. Он также может содержать подчеркивание или тире."
+	echo "Так, придумай кликуху новому клиенту:"
+	echo "Только буквы, цифры, можно палочку снизу или тире. Без выебонов."
 
 	until [[ ${CLIENT_NAME} =~ ^[a-zA-Z0-9_-]*$ && ${CLIENT_EXISTS} == '0' && ${#CLIENT_NAME} -lt 26 ]]; do
 		read -rp "Имя конфига: " -e CLIENT_NAME
@@ -255,7 +255,7 @@ function newClient() {
 
 		if [[ ${CLIENT_EXISTS} == '1' ]]; then
 			echo ""
-			echo "Конфиг с указанным именем уже был создан, пожалуйста, выберите другое имя."
+			echo "Э, такая кликуха уже занята. Придумай другую, не тупи."
 			echo ""
 		fi
 	done
@@ -269,32 +269,32 @@ function newClient() {
 
 	if [[ ${DOT_EXISTS} == '1' ]]; then
 		echo ""
-		echo "Настроенная подсеть поддерживает только 253 конфига."
+		echo "Всё, места кончились. Больше 253 душ сюда не влезет, подсеть забита."
 		exit 1
 	fi
 
 	BASE_IP=$(echo "$SERVER_WG_IPV4" | awk -F '.' '{ print $1"."$2"."$3 }')
 	until [[ ${IPV4_EXISTS} == '0' ]]; do
-		read -rp "IPv4 WireGuard Конфига: ${BASE_IP}." -e -i "${DOT_IP}" DOT_IP
+		read -rp "IPv4 для конфига: ${BASE_IP}." -e -i "${DOT_IP}" DOT_IP
 		CLIENT_WG_IPV4="${BASE_IP}.${DOT_IP}"
 		IPV4_EXISTS=$(grep -c "$CLIENT_WG_IPV4/24" "/etc/wireguard/${SERVER_WG_NIC}.conf")
 
 		if [[ ${IPV4_EXISTS} == '1' ]]; then
 			echo ""
-			echo "Конфиг с указанным IPv4 уже создан, пожалуйста, выберите другой IPv4."
+			echo "Этот IPv4 уже кем-то занят, бери другой."
 			echo ""
 		fi
 	done
 
 	BASE_IP=$(echo "$SERVER_WG_IPV6" | awk -F '::' '{ print $1 }')
 	until [[ ${IPV6_EXISTS} == '0' ]]; do
-		read -rp "WireGuard IPv6 Конфига: ${BASE_IP}::" -e -i "${DOT_IP}" DOT_IP
+		read -rp "IPv6 для конфига: ${BASE_IP}::" -e -i "${DOT_IP}" DOT_IP
 		CLIENT_WG_IPV6="${BASE_IP}::${DOT_IP}"
 		IPV6_EXISTS=$(grep -c "${CLIENT_WG_IPV6}/64" "/etc/wireguard/${SERVER_WG_NIC}.conf")
 
 		if [[ ${IPV6_EXISTS} == '1' ]]; then
 			echo ""
-			echo "Конфиг с указанным IPv6 уже создан, пожалуйста, выберите другой IPv6."
+			echo "И этот IPv6 занят. Ну ты понял, бери свободный."
 			echo ""
 		fi
 	done
@@ -335,29 +335,29 @@ AllowedIPs = ${CLIENT_WG_IPV4}/32,${CLIENT_WG_IPV6}/128" >>"/etc/wireguard/${SER
 
 	wg syncconf "${SERVER_WG_NIC}" <(wg-quick strip "${SERVER_WG_NIC}")
 
-	echo -e "\nВот файл конфигурации вашего клиента в виде QR-кода:"
+	echo -e "\nЛови свой конфиг в виде QR-кода, наводи телефон и вдыхай:"
 
 	qrencode -t ansiutf8 -l L <"${HOME_DIR}/${CLIENT_NAME}.conf"
 
-	echo "Он также доступен в ${HOME_DIR}/${CLIENT_NAME}.conf"
+	echo "Он ещё и файликом лежит тут: ${HOME_DIR}/${CLIENT_NAME}.conf"
 }
 
 function revokeClient() {
 	NUMBER_OF_CLIENTS=$(grep -c -E "^### Client" "/etc/wireguard/${SERVER_WG_NIC}.conf")
 	if [[ ${NUMBER_OF_CLIENTS} == '0' ]]; then
 		echo ""
-		echo "У вас нет существующих конфигов!"
+		echo "А выгонять-то некого, нет у тебя ни одного конфига!"
 		exit 1
 	fi
 
 	echo ""
-	echo "Выберите существующий конфиг, который вы хотите удалить"
+	echo "Тыкай, кого из клиентов выписываем на мороз"
 	grep -E "^### Client" "/etc/wireguard/${SERVER_WG_NIC}.conf" | cut -d ' ' -f 3 | nl -s ') '
 	until [[ ${CLIENT_NUMBER} -ge 1 && ${CLIENT_NUMBER} -le ${NUMBER_OF_CLIENTS} ]]; do
 		if [[ ${CLIENT_NUMBER} == '1' ]]; then
-			read -rp "Выберите один конфиг [1]: " CLIENT_NUMBER
+			read -rp "Выбирай одного [1]: " CLIENT_NUMBER
 		else
-			read -rp "Выберите один конфиг [1-${NUMBER_OF_CLIENTS}]: " CLIENT_NUMBER
+			read -rp "Выбирай одного [1-${NUMBER_OF_CLIENTS}]: " CLIENT_NUMBER
 		fi
 	done
 
@@ -372,7 +372,7 @@ function revokeClient() {
 
 function uninstallWg() {
 	echo ""
-	read -rp "Вы действительно хотите удалить WireGuard? [y/n]: " -e REMOVE
+	read -rp "Реально хочешь снести WireGuard к чертям? [y/n]: " -e REMOVE
 	REMOVE=${REMOVE:-n}
 	if [[ $REMOVE == 'y' ]]; then
 		checkOS
@@ -416,30 +416,30 @@ function uninstallWg() {
 		WG_RUNNING=$?
 
 		if [[ ${WG_RUNNING} -eq 0 ]]; then
-			echo "WireGuard не удалось удалить должным образом."
+			echo "Тьфу ты, WireGuard упёрся и не сносится по-нормальному."
 			exit 1
 		else
-			echo "WireGuard успешно удален."
+			echo "Всё, чисто. Юра выкорчевал WireGuard с корнями."
 			exit 0
 		fi
 	else
 		echo ""
-		echo "Удаление прервано!"
+		echo "Ну и ладно, передумал — оставляем как есть!"
 	fi
 }
 
 function manageMenu() {
-	echo "\nЮра Педрулин устанавливает WireGuard!"
+	echo "\nЮра Педрулин на связи, WireGuard-мастерская открыта!"
 	echo ""
-	echo "ты забыла Голова но, WireGuard уже установлен."
+	echo "Слышь, ты забыл — WireGuard-то уже стоит."
 	echo ""
-	echo "Что ты хочешь сделать?"
-	echo "   1) Добавить новый конфиг"
-	echo "   2) Удалить существующий конфиг"
-	echo "   3) Удалить WireGuard"
-	echo "   4) Выход"
+	echo "Ну чё делаем-то?"
+	echo "   1) Накинуть новый конфиг"
+	echo "   2) Выписать старый конфиг"
+	echo "   3) Снести WireGuard нахрен"
+	echo "   4) Свалить отсюда"
 	until [[ ${MENU_OPTION} =~ ^[1-4]$ ]]; do
-		read -rp "Выберите [1-4]: " MENU_OPTION
+		read -rp "Тыкай [1-4]: " MENU_OPTION
 	done
 	case "${MENU_OPTION}" in
 	1)
@@ -465,3 +465,12 @@ if [[ -e /etc/wireguard/params ]]; then
 else
 	installWireGuard
 fi
+
+echo ""
+echo -e "${BLUE}██████╗  ██████╗ ███████╗███████╗    ██╗  ██╗ ██████╗ ██╗  ██╗ ██████╗ ███████╗${NC}"
+echo -e "${BLUE}██╔══██╗██╔═══██╗██╔════╝██╔════╝    ██║ ██╔╝██╔═══██╗██║ ██╔╝██╔═══██╗██╔════╝${NC}"
+echo -e "${BLUE}██████╔╝██║   ██║███████╗███████╗    █████╔╝ ██║   ██║█████╔╝ ██║   ██║███████╗${NC}"
+echo -e "${BLUE}██╔══██╗██║   ██║╚════██║╚════██║    ██╔═██╗ ██║   ██║██╔═██╗ ██║   ██║╚════██║${NC}"
+echo -e "${BLUE}██████╔╝╚██████╔╝███████║███████║    ██║  ██╗╚██████╔╝██║  ██╗╚██████╔╝███████║${NC}"
+echo -e "${BLUE}╚═════╝  ╚═════╝ ╚══════╝╚══════╝    ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝${NC}"
+echo ""
