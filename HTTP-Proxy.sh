@@ -59,7 +59,7 @@ acl authenticated proxy_auth REQUIRED
 http_access allow authenticated
 http_access deny all
 EOL
-
+echo "Юра Педрулин уже заканчивает с этим"
 # Перезапуск службы Squid
 echo "Запуск службы Squid..."
 sudo systemctl restart squid
@@ -69,9 +69,9 @@ server_ip=$(hostname -I | awk '{print $1}')
 
 # Вывод данных для подключения
 echo " "
-echo " "
-echo "    HTTPS прокси-сервер был успешно настроен!"
-echo " "
+echo "    Залупа, у тебя Получилось!"
+echo "    HTTPS прокси-сервер Готов Ебать!"
+echo "    Быстре Сука копируй уже"
 echo "==================================================="
 echo " "
 echo "           IP: $server_ip"
