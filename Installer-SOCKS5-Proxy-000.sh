@@ -1,7 +1,7 @@
 #!/bin/bash
 
 function YourBanner(){
- echo -e " Добро пожаловать в установщик SOCKS5!"
+ echo -e " Юра Педрулдин устанавливает тебе SOCKS5!"
  echo -e ""
 }
 
@@ -43,7 +43,7 @@ function Installation(){
          echo "Файл $log_file не существует."
      fi
  done
- apt-get install wget nano dante-server netcat -y &> /dev/null | echo '[*] Установка SOCKS5...'
+ apt-get install wget nano dante-server netcat -y &> /dev/null | echo '[*] Хобот Идет SOCKS5 скоро будет...'
  cat <<'EOF'> /etc/danted.conf
 logoutput: /var/log/socks.log
 internal: 0.0.0.0 port = SOCKSPORT
@@ -82,10 +82,10 @@ EOF
 }
  
 function Uninstallation(){
- echo -e '[*] Очистка перед установкой SOCKS5'
+ echo -e '[*] Чистим Дырочки SOCKS5'
  apt-get remove --purge dante-server -y
  rm -rf /etc/danted.conf
- echo -e '[√] Очиства выполнена.'
+ echo -e '[√] Без следов.'
 }
 
 function SuccessMessage(){
@@ -99,7 +99,7 @@ function SuccessMessage(){
  echo -e " Password: $socksPass"
  echo -e "======================"
  echo -e ""
- echo -e " Данные для подключения записаны в /root/socks5.txt"
+ echo -e " Готовченко, малой тебе цыфры сохранил что бы ты не проебала, ищи тут  /root/socks5.txt"
  cat <<EOF> ~/socks5.txt
 IP Address: $(wget -4qO- http://ipinfo.io/ip)
 Port: $SOCKSPORT
