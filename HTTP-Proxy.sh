@@ -2,6 +2,8 @@
 
 set -e
 
+
+echo "Так Юра педурилин приступает к работе.. ."
 # Удаление предыдущей установки Squid
 echo "Удаление предыдущей установки Squid..."
 sudo systemctl stop squid || true
@@ -28,6 +30,7 @@ echo "Удаление предыдущего файла паролей..."
 sudo rm -f /etc/squid/passwd
 
 # Установка HTTPS прокси-сервера (в примере - Squid)
+echo "Юра делает свою делишки жди боец, уже скоро"
 echo "Установка HTTP прокси-сервера..."
 sudo apt-get update
 sudo apt-get install -y squid apache2-utils
