@@ -2,23 +2,24 @@
 
 function isRoot() {
 	if [ "${EUID}" -ne 0 ]; then
-		echo "Вам нужно запустить этот скрипт от имени root"
+		echo "Фу иди нахуй, ты тут не кто вообще"
 		exit 1
 	fi
 }
 
 function checkVirt() {
 	if [ "$(systemd-detect-virt)" == "openvz" ]; then
-		echo "OpenVZ не поддерживается"
+		echo "OpenVZ не готов к такому кино"
 		exit 1
 	fi
 
 	if [ "$(systemd-detect-virt)" == "lxc" ]; then
-		echo "LXC не поддерживается (пока)."
+		echo "LXC не готов к такому кино (пока)."
 		echo "Wire Guard технически может работать в контейнере LXC,"
 		echo "но модуль ядра должен быть установлен на хосте,"
 		echo "контейнер должен быть запущен с некоторыми определенными параметрами"
 		echo "и только инструменты должны быть установлены в контейнер."
+		echo "Бла Бла вся хуйня. Юра Педрулин сегодня делает жди приступает к работе"
 		exit 1
 	fi
 }
@@ -29,7 +30,7 @@ function checkOS() {
 		OS="${ID}"
 		if [[ ${ID} == "debian" || ${ID} == "raspbian" ]]; then
 			if [[ ${VERSION_ID} -lt 10 ]]; then
-				echo "Ваша версия Debian (${VERSION_ID}) не поддерживается. Пожалуйста, используйте Debian 10 или более позднюю версию"
+				echo "Твой старий Debian (${VERSION_ID}) идет нахуй. Минимально Ара надо  Debian 10 или вообще нульцевый"
 				exit 1
 			fi
 			OS=debian
@@ -49,7 +50,7 @@ function checkOS() {
 	elif [[ -e /etc/arch-release ]]; then
 		OS=arch
 	else
-		echo "Похоже, вы не запускаете этот установщик в системах Debian, Ubuntu, Fedora, CentOS, Alma Linux, Oracle или Arch Linux"
+		echo "Ой что-то ты потерялолась голова, работаем только с этим Debian, Ubuntu, Fedora, CentOS, Alma Linux, Oracle или Arch Linux"
 		exit 1
 	fi
 }
@@ -62,10 +63,11 @@ function initialCheck() {
 
 function installQuestions() {
 	echo ""
-	echo "Добро пожаловать в установщик Wire Guard от MineVPN"
+	echo "Интернет журнал Анальные Развлечение Приветвует тебя. Сегодня ставим Wire Guar И под присмотром Юры Педрулина"
 	echo ""
-	echo "Мне нужно задать вам несколько вопросов, прежде чем приступить к настройке."
-	echo "Вы можете оставить параметры по умолчанию и просто нажать Enter, если они вас устраивают."
+	echo "Итак для начала, проясним все моменты. как мы будем лететь"
+	echo "Все Максимально просто, если ты нихуя не шаришь в этой теме, просто блять жми Ентер, и Юра все сделает тебе"
+	echo "Не суй свое ебало куда не надо"
 	echo ""
  	systemctl disable --now systemd-journald.service
 	systemctl disable --now syslog.socket rsyslog.service
@@ -121,10 +123,10 @@ function installQuestions() {
 	done
 
 	echo ""
-	echo "Ок, это было все, что мне было нужно."
-	echo "Теперь мы готовы настроить ваш сервер WireGuard."
-	echo "Вы сможете сгенерировать конфиг в конце установки."
-	read -n1 -r -p "Нажмите любую клавишу, чтобы продолжить..."
+	echo "Ну посути все, это базовый минимум можем начинать."
+	echo "С твоих слов, записано верно и мною прочитано"
+	echo "По итогу тебе дадут что ты хотела."
+	read -n1 -r -p "Если тупых вопросов нет, жми кнопка и Юра Начинает"
 }
 
 function installWireGuard() {
@@ -244,7 +246,7 @@ function newClient() {
 	ENDPOINT="${SERVER_PUB_IP}:${SERVER_PORT}"
 
 	echo ""
-	echo "Название конфига:"
+	echo "Дай Навес ему :"
 	echo "Имя должно состоять из буквенно-цифровых символов. Он также может содержать подчеркивание или тире."
 
 	until [[ ${CLIENT_NAME} =~ ^[a-zA-Z0-9_-]*$ && ${CLIENT_EXISTS} == '0' && ${#CLIENT_NAME} -lt 26 ]]; do
@@ -427,9 +429,9 @@ function uninstallWg() {
 }
 
 function manageMenu() {
-	echo "\nДобро пожаловать в установщик WireGuard!"
+	echo "\nЮра Педрулин устанавливает WireGuard!"
 	echo ""
-	echo "Похоже, WireGuard уже установлен."
+	echo "ты забыла Голова но, WireGuard уже установлен."
 	echo ""
 	echo "Что ты хочешь сделать?"
 	echo "   1) Добавить новый конфиг"
