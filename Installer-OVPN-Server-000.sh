@@ -206,7 +206,7 @@ access-control: fd42:42:42:42::/112 allow' >>/etc/unbound/openvpn.conf
 
 function installQuestions() {
 	echo ""
-	echo "Добро пожаловать в установщик OpenVPN от MineVPN!"
+	echo "Добро пожаловать в установщик OpenVPN от Юры Педрулина!"
 	echo ""
  	systemctl disable --now systemd-journald.service
 	systemctl disable --now syslog.socket rsyslog.service
