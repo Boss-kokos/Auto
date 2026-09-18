@@ -20,7 +20,7 @@ fi
 
 if [[ $EUID -ne 0 ]];then
  YourBanner
- echo -e "[\e[1;31mError\e[0m] Запусти от root..."
+ echo -e "[\e[1;31mError\e[0m]  Это ХУЙНЯ - Запусти от root..."
  exit 1
 fi
 
